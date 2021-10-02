@@ -3,7 +3,7 @@
 <title>Static Call Graph - [homework\homework.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image homework\homework.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060960: Last Updated: Sat Oct 02 20:08:27 2021
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060960: Last Updated: Sat Oct 02 20:51:33 2021
 <BR><P>
 <H3>Maximum Stack Usage =        324 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
@@ -118,8 +118,8 @@ Function Pointers
  <LI><a href="#[5a]">read_button_state_task</a> from main.o(i.read_button_state_task) referenced from main.o(i.main)
  <LI><a href="#[54]">read_x_value_task</a> from main.o(i.read_x_value_task) referenced from main.o(i.main)
  <LI><a href="#[55]">read_y_value_task</a> from main.o(i.read_y_value_task) referenced from main.o(i.main)
- <LI><a href="#[57]">transmitt_button_state_task</a> from main.o(i.transmitt_button_state_task) referenced from main.o(i.main)
- <LI><a href="#[56]">transmitt_value_task</a> from main.o(i.transmitt_value_task) referenced from main.o(i.main)
+ <LI><a href="#[57]">transmit_button_state_task</a> from main.o(i.transmit_button_state_task) referenced from main.o(i.main)
+ <LI><a href="#[56]">transmit_value_task</a> from main.o(i.transmit_value_task) referenced from main.o(i.main)
 </UL>
 <P>
 <H3>
@@ -545,8 +545,8 @@ Global Symbols
 <P><STRONG><a name="[d6]"></a>strlen</STRONG> (Thumb, 62 bytes, Stack size 8 bytes, strlen.o(.text))
 <BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = strlen
 </UL>
-<BR>[Called By]<UL><LI><a href="#[56]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmitt_value_task
-<LI><a href="#[57]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmitt_button_state_task
+<BR>[Called By]<UL><LI><a href="#[56]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmit_value_task
+<LI><a href="#[57]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmit_button_state_task
 <LI><a href="#[58]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;led_gatekeeper_task
 </UL>
 
@@ -566,7 +566,7 @@ Global Symbols
 <P><STRONG><a name="[7e]"></a>__aeabi_memcpy4</STRONG> (Thumb, 0 bytes, Stack size 8 bytes, rt_memcpy_w.o(.text))
 <BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = __aeabi_memcpy4
 </UL>
-<BR>[Called By]<UL><LI><a href="#[57]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmitt_button_state_task
+<BR>[Called By]<UL><LI><a href="#[57]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmit_button_state_task
 <LI><a href="#[7d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__rt_memcpy
 </UL>
 
@@ -804,7 +804,7 @@ Global Symbols
 </UL>
 
 <P><STRONG><a name="[111]"></a>HAL_GPIO_ReadPin</STRONG> (Thumb, 10 bytes, Stack size 0 bytes, stm32f3xx_hal_gpio.o(i.HAL_GPIO_ReadPin))
-<BR><BR>[Called By]<UL><LI><a href="#[57]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmitt_button_state_task
+<BR><BR>[Called By]<UL><LI><a href="#[57]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmit_button_state_task
 <LI><a href="#[5a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;read_button_state_task
 </UL>
 
@@ -1084,8 +1084,8 @@ Global Symbols
 <BR>[Calls]<UL><LI><a href="#[9a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
 <LI><a href="#[c7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;UART_WaitOnFlagUntilTimeout
 </UL>
-<BR>[Called By]<UL><LI><a href="#[56]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmitt_value_task
-<LI><a href="#[57]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmitt_button_state_task
+<BR>[Called By]<UL><LI><a href="#[56]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmit_value_task
+<LI><a href="#[57]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmit_button_state_task
 </UL>
 
 <P><STRONG><a name="[6]"></a>HardFault_Handler</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, stm32f3xx_it.o(i.HardFault_Handler))
@@ -1203,7 +1203,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[71]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[59]"></a>led_controller_task</STRONG> (Thumb, 68 bytes, Stack size 8 bytes, main.o(i.led_controller_task))
+<P><STRONG><a name="[59]"></a>led_controller_task</STRONG> (Thumb, 72 bytes, Stack size 8 bytes, main.o(i.led_controller_task))
 <BR><BR>[Stack]<UL><LI>Max Depth = 120<LI>Call Chain = led_controller_task &rArr; xQueueReceive &rArr; xTaskResumeAll &rArr; xTaskIncrementTick
 </UL>
 <BR>[Calls]<UL><LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueReceive
@@ -1211,7 +1211,7 @@ Global Symbols
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> main.o(i.main)
 </UL>
-<P><STRONG><a name="[58]"></a>led_gatekeeper_task</STRONG> (Thumb, 148 bytes, Stack size 64 bytes, main.o(i.led_gatekeeper_task))
+<P><STRONG><a name="[58]"></a>led_gatekeeper_task</STRONG> (Thumb, 156 bytes, Stack size 64 bytes, main.o(i.led_gatekeeper_task))
 <BR><BR>[Stack]<UL><LI>Max Depth = 192 + Unknown Stack Size
 <LI>Call Chain = led_gatekeeper_task &rArr; __2sprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
@@ -1265,10 +1265,10 @@ Global Symbols
 <P><STRONG><a name="[10e]"></a>pvPortMalloc</STRONG> (Thumb, 210 bytes, Stack size 24 bytes, heap_4.o(i.pvPortMalloc))
 <BR><BR>[Stack]<UL><LI>Max Depth = 80<LI>Call Chain = pvPortMalloc &rArr; xTaskResumeAll &rArr; xTaskIncrementTick
 </UL>
-<BR>[Calls]<UL><LI><a href="#[103]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xTaskResumeAll
-<LI><a href="#[102]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;vTaskSuspendAll
-<LI><a href="#[110]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvInsertBlockIntoFreeList
+<BR>[Calls]<UL><LI><a href="#[110]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvInsertBlockIntoFreeList
 <LI><a href="#[10f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvHeapInit
+<LI><a href="#[103]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xTaskResumeAll
+<LI><a href="#[102]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;vTaskSuspendAll
 </UL>
 <BR>[Called By]<UL><LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xTaskCreate
 <LI><a href="#[e2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xStreamBufferGenericCreate
@@ -1331,8 +1331,8 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[5b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;led_test_task
 </UL>
 
-<P><STRONG><a name="[57]"></a>transmitt_button_state_task</STRONG> (Thumb, 80 bytes, Stack size 24 bytes, main.o(i.transmitt_button_state_task))
-<BR><BR>[Stack]<UL><LI>Max Depth = 136<LI>Call Chain = transmitt_button_state_task &rArr; xQueueGenericSend &rArr; xTaskResumeAll &rArr; xTaskIncrementTick
+<P><STRONG><a name="[57]"></a>transmit_button_state_task</STRONG> (Thumb, 80 bytes, Stack size 24 bytes, main.o(i.transmit_button_state_task))
+<BR><BR>[Stack]<UL><LI>Max Depth = 136<LI>Call Chain = transmit_button_state_task &rArr; xQueueGenericSend &rArr; xTaskResumeAll &rArr; xTaskIncrementTick
 </UL>
 <BR>[Calls]<UL><LI><a href="#[114]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueSemaphoreTake
 <LI><a href="#[d9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueGenericSend
@@ -1344,8 +1344,8 @@ Global Symbols
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> main.o(i.main)
 </UL>
-<P><STRONG><a name="[56]"></a>transmitt_value_task</STRONG> (Thumb, 64 bytes, Stack size 64 bytes, main.o(i.transmitt_value_task))
-<BR><BR>[Stack]<UL><LI>Max Depth = 176<LI>Call Chain = transmitt_value_task &rArr; xQueueGenericSend &rArr; xTaskResumeAll &rArr; xTaskIncrementTick
+<P><STRONG><a name="[56]"></a>transmit_value_task</STRONG> (Thumb, 64 bytes, Stack size 64 bytes, main.o(i.transmit_value_task))
+<BR><BR>[Stack]<UL><LI>Max Depth = 176<LI>Call Chain = transmit_value_task &rArr; xQueueGenericSend &rArr; xTaskResumeAll &rArr; xTaskIncrementTick
 </UL>
 <BR>[Calls]<UL><LI><a href="#[117]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xStreamBufferReceive
 <LI><a href="#[114]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueSemaphoreTake
@@ -1473,9 +1473,9 @@ Global Symbols
 <P><STRONG><a name="[f4]"></a>vPortFree</STRONG> (Thumb, 88 bytes, Stack size 16 bytes, heap_4.o(i.vPortFree))
 <BR><BR>[Stack]<UL><LI>Max Depth = 72<LI>Call Chain = vPortFree &rArr; xTaskResumeAll &rArr; xTaskIncrementTick
 </UL>
-<BR>[Calls]<UL><LI><a href="#[103]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xTaskResumeAll
+<BR>[Calls]<UL><LI><a href="#[110]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvInsertBlockIntoFreeList
+<LI><a href="#[103]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xTaskResumeAll
 <LI><a href="#[102]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;vTaskSuspendAll
-<LI><a href="#[110]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvInsertBlockIntoFreeList
 </UL>
 <BR>[Called By]<UL><LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xTaskCreate
 <LI><a href="#[fe]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvProcessReceivedCommands
@@ -1518,7 +1518,7 @@ Global Symbols
 <LI><a href="#[102]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;vTaskSuspendAll
 <LI><a href="#[e4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvAddCurrentTaskToDelayedList
 </UL>
-<BR>[Called By]<UL><LI><a href="#[57]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmitt_button_state_task
+<BR>[Called By]<UL><LI><a href="#[57]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmit_button_state_task
 <LI><a href="#[55]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;read_y_value_task
 <LI><a href="#[54]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;read_x_value_task
 <LI><a href="#[5a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;read_button_state_task
@@ -1755,8 +1755,8 @@ Global Symbols
 <LI><a href="#[eb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;vPortExitCritical
 <LI><a href="#[e9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;vPortEnterCritical
 </UL>
-<BR>[Called By]<UL><LI><a href="#[56]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmitt_value_task
-<LI><a href="#[57]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmitt_button_state_task
+<BR>[Called By]<UL><LI><a href="#[56]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmit_value_task
+<LI><a href="#[57]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmit_button_state_task
 <LI><a href="#[55]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;read_y_value_task
 <LI><a href="#[54]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;read_x_value_task
 <LI><a href="#[58]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;led_gatekeeper_task
@@ -1813,8 +1813,8 @@ Global Symbols
 <LI><a href="#[eb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;vPortExitCritical
 <LI><a href="#[e9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;vPortEnterCritical
 </UL>
-<BR>[Called By]<UL><LI><a href="#[56]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmitt_value_task
-<LI><a href="#[57]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmitt_button_state_task
+<BR>[Called By]<UL><LI><a href="#[56]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmit_value_task
+<LI><a href="#[57]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmit_button_state_task
 <LI><a href="#[55]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;read_y_value_task
 <LI><a href="#[54]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;read_x_value_task
 </UL>
@@ -1843,7 +1843,7 @@ Global Symbols
 <LI><a href="#[106]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvReadMessageFromBuffer
 <LI><a href="#[131]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvBytesInBuffer
 </UL>
-<BR>[Called By]<UL><LI><a href="#[56]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmitt_value_task
+<BR>[Called By]<UL><LI><a href="#[56]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;transmit_value_task
 </UL>
 
 <P><STRONG><a name="[d7]"></a>xStreamBufferSend</STRONG> (Thumb, 236 bytes, Stack size 64 bytes, stream_buffer.o(i.xStreamBufferSend))
@@ -1942,8 +1942,8 @@ Global Symbols
 <LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;uxListRemove
 <LI><a href="#[125]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvResetNextTaskUnblockTime
 </UL>
-<BR>[Called By]<UL><LI><a href="#[103]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xTaskResumeAll
-<LI><a href="#[d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SysTick_Handler
+<BR>[Called By]<UL><LI><a href="#[d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SysTick_Handler
+<LI><a href="#[103]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xTaskResumeAll
 </UL>
 
 <P><STRONG><a name="[132]"></a>xTaskNotifyStateClear</STRONG> (Thumb, 48 bytes, Stack size 8 bytes, tasks.o(i.xTaskNotifyStateClear))
@@ -2222,8 +2222,8 @@ Local Symbols
 <P><STRONG><a name="[f1]"></a>prvCopyDataToQueue</STRONG> (Thumb, 108 bytes, Stack size 24 bytes, queue.o(i.prvCopyDataToQueue))
 <BR><BR>[Stack]<UL><LI>Max Depth = 40<LI>Call Chain = prvCopyDataToQueue &rArr; xTaskPriorityDisinherit
 </UL>
-<BR>[Calls]<UL><LI><a href="#[f2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xTaskPriorityDisinherit
-<LI><a href="#[f0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memcpy
+<BR>[Calls]<UL><LI><a href="#[f0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memcpy
+<LI><a href="#[f2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xTaskPriorityDisinherit
 </UL>
 <BR>[Called By]<UL><LI><a href="#[d9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueGenericSend
 <LI><a href="#[12e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueGenericSendFromISR
@@ -2365,9 +2365,9 @@ Local Symbols
 <BR><BR>[Stack]<UL><LI>Max Depth = 40 + Unknown Stack Size
 <LI>Call Chain = prvInitialiseNewTask &rArr; pxPortInitialiseStack
 </UL>
-<BR>[Calls]<UL><LI><a href="#[fa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;vListInitialiseItem
+<BR>[Calls]<UL><LI><a href="#[81]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memset
+<LI><a href="#[fa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;vListInitialiseItem
 <LI><a href="#[fb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;pxPortInitialiseStack
-<LI><a href="#[81]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memset
 </UL>
 <BR>[Called By]<UL><LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xTaskCreate
 <LI><a href="#[122]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xTaskCreateStatic

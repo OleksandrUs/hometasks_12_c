@@ -32,6 +32,7 @@
 #define BUTTON_READ_STATE_PERIOD 100
 
 #define LSM303DLHC_ADDRESS 0x32
+#define I2C_ATTEMPTS_NUM 1
 
 #define QUEUE_LENGTH 4
 #define STACK_SIZE 128		// in 4-byte words
@@ -74,8 +75,8 @@ int8_t map_accel_to_array_index(int16_t acceleration);
 
 void read_x_value_task(void *param);
 void read_y_value_task(void *param);
-void transmitt_value_task(void *param);
-void transmitt_button_state_task(void *param);
+void transmit_value_task(void *param);
+void transmit_button_state_task(void *param);
 void led_gatekeeper_task(void *param);
 void led_controller_task(void *param);
 void read_button_state_task(void *param);
@@ -92,8 +93,8 @@ static void MX_USART2_UART_Init(void);
 // Task handles
 TaskHandle_t read_x_value_task_handle;
 TaskHandle_t read_y_value_task_handle;
-TaskHandle_t transmitt_value_task_handle;
-TaskHandle_t transmitt_button_state_task_handle;
+TaskHandle_t transmit_value_task_handle;
+TaskHandle_t transmit_button_state_task_handle;
 TaskHandle_t led_gatekeeper_task_handle;
 TaskHandle_t led_controller_task_handle;
 TaskHandle_t read_button_state_task_handle;
@@ -128,7 +129,7 @@ int main(void)
 	accel_Y_queue_handle = xQueueCreate(QUEUE_LENGTH, sizeof(int16_t));
 	matrix_indexes_queue_handle = xQueueCreate(QUEUE_LENGTH, sizeof(struct matrix_indexes));
 	
-	if((accel_X_queue_handle == NULL) || (accel_Y_queue_handle == NULL) || (matrix_indexes_queue_handle == NULL)) {
+	if((accel_X_queue_handle == NULL) || (accel_Y_queue_handle == NULL) || (matrix_indexes_queue_handle == NULL)){
 		Error_Handler();
 	}
 	
@@ -140,11 +141,11 @@ int main(void)
 		Error_Handler();
 	}
 	
-	if(xTaskCreate(transmitt_value_task, "Transmitt value task", STACK_SIZE, NULL, PRIORITY_NORMAL, &transmitt_value_task_handle) != pdPASS){
+	if(xTaskCreate(transmit_value_task, "Transmitt value task", STACK_SIZE, NULL, PRIORITY_NORMAL, &transmit_value_task_handle) != pdPASS){
 		Error_Handler();
 	}
 	
-	if(xTaskCreate(transmitt_button_state_task, "Transmitt button state task", STACK_SIZE, NULL, PRIORITY_NORMAL, &transmitt_button_state_task_handle) != pdPASS){
+	if(xTaskCreate(transmit_button_state_task, "Transmitt button state task", STACK_SIZE, NULL, PRIORITY_NORMAL, &transmit_button_state_task_handle) != pdPASS){
 		Error_Handler();
 	}
 	
@@ -173,13 +174,13 @@ int main(void)
 	}
 	
 	stream_buffer_handle = xStreamBufferCreate(STREAM_BUFFER_LENGTH, MAX_STR_LENGTH);
-	if(stream_buffer_handle == NULL) {
+	if(stream_buffer_handle == NULL){
 		Error_Handler();
 	}
 	
 	vTaskStartScheduler();
 	
-	while (1) {
+	while(1){
 		
   }
 }
@@ -188,8 +189,8 @@ void accel_init(void)
 {
 	HAL_StatusTypeDef status;
 	while(1) { 	// wait...
-    status = HAL_I2C_IsDeviceReady(&hi2c1, LSM303DLHC_ADDRESS, 1, HAL_MAX_DELAY);
-    if(status == HAL_OK) {
+    status = HAL_I2C_IsDeviceReady(&hi2c1, LSM303DLHC_ADDRESS, I2C_ATTEMPTS_NUM, HAL_MAX_DELAY);
+    if(status == HAL_OK){
       break;
 		}
   }
@@ -211,8 +212,8 @@ int8_t map_accel_to_array_index(int16_t acceleration)
 	int8_t index;
 	index = (int16_t) acceleration / SENSITIVITY + 2;
 	
-	if(index > PIN_ARRAY_MAX_INDEX) {
-		index = PIN_ARRAY_MAX_INDEX;
+	if(index > PIN_ARRAY_MAX_INDEX){
+			index = PIN_ARRAY_MAX_INDEX;
 	  } else if(index < PIN_ARRAY_MIN_INDEX){
 			index = PIN_ARRAY_MIN_INDEX;
 	 }
@@ -226,21 +227,21 @@ void read_x_value_task(void *param)
 	int16_t x_accel;
 	HAL_StatusTypeDef status[2];
 
-	while(1) {
+	while(1){
 		xSemaphoreTake(sensor_mutex, portMAX_DELAY);
 		status[0] = HAL_I2C_Mem_Read(&hi2c1, LSM303DLHC_ADDRESS, 0x28, I2C_MEMADD_SIZE_8BIT, &data[0], 1, I2C_TIMEOUT);
 		status[1] = HAL_I2C_Mem_Read(&hi2c1, LSM303DLHC_ADDRESS, 0x29, I2C_MEMADD_SIZE_8BIT, &data[1], 1, I2C_TIMEOUT);
 		
-		if((status[0] == HAL_OK) && (status[1] == HAL_OK)) {
+		if((status[0] == HAL_OK) && (status[1] == HAL_OK)){
 			x_accel = (data[1]<<8) | data[0];
 			
-			if((x_accel < ACCEL_THRESHOLD) && (x_accel > -ACCEL_THRESHOLD)) {
+			if((x_accel < ACCEL_THRESHOLD) && (x_accel > -ACCEL_THRESHOLD)){
 				x_accel = DEFAULT_X_ACCEL_VALUE;
 			}
 
 			xQueueSend(accel_X_queue_handle, &x_accel, portMAX_DELAY);
 			xSemaphoreGive(sensor_mutex);
-			}
+		}
 			vTaskDelay(I2C_READ_DATA_PERIOD);
 	}
 }
@@ -256,11 +257,11 @@ void read_y_value_task(void *param)
 		xSemaphoreTake(sensor_mutex, portMAX_DELAY);
 		status[0] = HAL_I2C_Mem_Read(&hi2c1, LSM303DLHC_ADDRESS, 0x2A, I2C_MEMADD_SIZE_8BIT, &data[0], 1, I2C_TIMEOUT);
 		status[1] = HAL_I2C_Mem_Read(&hi2c1, LSM303DLHC_ADDRESS, 0x2B, I2C_MEMADD_SIZE_8BIT, &data[1], 1, I2C_TIMEOUT);
-		if((status[0] == HAL_OK) && (status[1] == HAL_OK)) {
+		if((status[0] == HAL_OK) && (status[1] == HAL_OK)){
 
 		y_accel = (data[1]<<8) | data[0];
 		
-		if((y_accel < ACCEL_THRESHOLD) && (y_accel > -ACCEL_THRESHOLD)) {
+		if((y_accel < ACCEL_THRESHOLD) && (y_accel > -ACCEL_THRESHOLD)){
 			y_accel = DEFAULT_Y_ACCEL_VALUE;
 		}
 
@@ -271,28 +272,30 @@ void read_y_value_task(void *param)
 	}
 }
 
-void transmitt_value_task(void *param)
+void transmit_value_task(void *param)
 {
 	size_t size;
 	char text[STREAM_BUFFER_LENGTH];
-	while(1) {
+	while(1){
 		size = xStreamBufferReceive(stream_buffer_handle, (void*)text, STREAM_BUFFER_LENGTH, portMAX_DELAY);
 		text[size] = '\0';
+		
 		xSemaphoreTake(uart_semaphore, portMAX_DELAY);
 		HAL_UART_Transmit(&huart2, (uint8_t*)text, strlen(text), portMAX_DELAY);
 		xSemaphoreGive(uart_semaphore);
 	}
 }
 
-void transmitt_button_state_task(void *param)
+void transmit_button_state_task(void *param)
 {
 	const char str[] = "Button PRESSED\n\r";
-  while(1) {
-		if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_SET)
-		{
+  while(1){
+		if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_SET){
+		
 			xSemaphoreTake(uart_semaphore, portMAX_DELAY);
 			HAL_UART_Transmit(&huart2, (uint8_t*)str, strlen(str), UART_TX_TIMEOUT);
 			xSemaphoreGive(uart_semaphore);
+			
 			vTaskDelay(BUTTON_READ_STATE_PERIOD);
 		}
 	}
@@ -305,37 +308,40 @@ void led_gatekeeper_task(void *param)
 	int16_t y_accel;
 	char str[MAX_STR_LENGTH];
 
-	while(1) {
-		xQueueReceive(accel_X_queue_handle, &x_accel, portMAX_DELAY);
-		xQueueReceive(accel_Y_queue_handle, &y_accel, portMAX_DELAY);
-		
-		sprintf(str, "x = %.1f g; y = %.1f g\r\n", (float)x_accel * G_FACTOR, (float)y_accel * G_FACTOR);
-		xStreamBufferSend(stream_buffer_handle, str, strlen(str), portMAX_DELAY);
-		
-		indexes.x = map_accel_to_array_index(x_accel);
-		indexes.y = map_accel_to_array_index(y_accel);
-		
-		xQueueSend(matrix_indexes_queue_handle, &indexes, portMAX_DELAY);
+	while(1){
+		if((xQueueReceive(accel_X_queue_handle, &x_accel, portMAX_DELAY) == pdPASS) &&
+			 (xQueueReceive(accel_Y_queue_handle, &y_accel, portMAX_DELAY) == pdPASS)){	
+				
+				sprintf(str, "x = %.1f g; y = %.1f g\r\n", (float)x_accel * G_FACTOR, (float)y_accel * G_FACTOR);
+				xStreamBufferSend(stream_buffer_handle, str, strlen(str), portMAX_DELAY);
+					
+				indexes.x = map_accel_to_array_index(x_accel);
+				indexes.y = map_accel_to_array_index(y_accel);
+					
+				xQueueSend(matrix_indexes_queue_handle, &indexes, portMAX_DELAY);
+		}
 	}
 }
 
 void led_controller_task(void *param)
-{
-	while(1) {
-		struct matrix_indexes indexes;
-		xQueueReceive(matrix_indexes_queue_handle, &indexes, portMAX_DELAY);
-		HAL_GPIO_WritePin(GPIOE, GREEN_LED_1 | ORANGE_LED_1 | BLUE_LED_1 | RED_LED_1 | GREEN_LED_2 | ORANGE_LED_2 | BLUE_LED_2 | RED_LED_2, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(GPIOE, leds[indexes.x][indexes.y], GPIO_PIN_SET);
+{		
+	struct matrix_indexes indexes;
+	while(1){
+		if(xQueueReceive(matrix_indexes_queue_handle, &indexes, portMAX_DELAY) == pdTRUE)
+		{
+			HAL_GPIO_WritePin(GPIOE, GREEN_LED_1 | ORANGE_LED_1 | BLUE_LED_1 | RED_LED_1 | GREEN_LED_2 | ORANGE_LED_2 | BLUE_LED_2 | RED_LED_2, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOE, leds[indexes.x][indexes.y], GPIO_PIN_SET);
+		}
 	}
 }
 
 void read_button_state_task(void *param)
 {
-	while(1) {
-		if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_SET) {
+	while(1){
+		if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_SET){
 			xEventGroupSetBits(event_group_handle, BUTTON_PRESSED);
 		}
-		else {
+		else{
 			xEventGroupSetBits(event_group_handle, BUTTON_RELEASED);
 		}
 		vTaskDelay(BUTTON_READ_STATE_PERIOD);
@@ -345,15 +351,15 @@ void read_button_state_task(void *param)
 void led_test_task(void *param)
 {
 	EventBits_t event_group_value;
-  while(1) {
+  while(1){
    event_group_value = xEventGroupWaitBits(event_group_handle, BUTTON_PRESSED, pdTRUE, pdTRUE, portMAX_DELAY);                               
-   if((event_group_value & BUTTON_PRESSED) !=0) {
+   if((event_group_value & BUTTON_PRESSED) != 0){
 			suspend_tasks();
 			HAL_GPIO_WritePin(GPIOE, GREEN_LED_1 | ORANGE_LED_1 | BLUE_LED_1 | RED_LED_1 | GREEN_LED_2 | ORANGE_LED_2 | BLUE_LED_2 | RED_LED_2, GPIO_PIN_SET);
    }
 	 
 	 event_group_value = xEventGroupWaitBits(event_group_handle, BUTTON_RELEASED, pdTRUE, pdTRUE, portMAX_DELAY);
-   if((event_group_value & BUTTON_RELEASED) !=0) {
+   if((event_group_value & BUTTON_RELEASED) != 0){
 			HAL_GPIO_WritePin(GPIOE, GREEN_LED_1 | ORANGE_LED_1 | BLUE_LED_1 | RED_LED_1 | GREEN_LED_2 | ORANGE_LED_2 | BLUE_LED_2 | RED_LED_2, GPIO_PIN_RESET);
 			resume_tasks();
    }
@@ -364,7 +370,7 @@ void suspend_tasks(void)
 {
 	vTaskSuspend(read_x_value_task_handle);
 	vTaskSuspend(read_y_value_task_handle);
-	vTaskSuspend(transmitt_value_task_handle);
+	vTaskSuspend(transmit_value_task_handle);
 	vTaskSuspend(led_gatekeeper_task_handle);
 	vTaskSuspend(led_controller_task_handle);
 }
@@ -373,7 +379,7 @@ void resume_tasks(void)
 {
 	vTaskResume(read_x_value_task_handle);
 	vTaskResume(read_y_value_task_handle);
-	vTaskResume(transmitt_value_task_handle);
+	vTaskResume(transmit_value_task_handle);
 	vTaskResume(led_gatekeeper_task_handle);
 	vTaskResume(led_controller_task_handle);
 }
