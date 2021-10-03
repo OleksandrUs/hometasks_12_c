@@ -2,7 +2,7 @@
 
 *Home tasks are:*
 
-• Create project which contains Inter-task communication and synchronisation
+â€¢ Create project which contains Inter-task communication and synchronisation
 (RTOS Task Notifications, Stream and Message Buffers, Queues, Binary Semaphores,
 Counting Semaphores, Mutexes).<br>
 
@@ -12,6 +12,7 @@ Keil uVision v5.35.0.0<br>
 STM32CubeMX v6.3.0<br>
 
 **Task notes**
+
 In the program a few tasks are created. Two tasks are used to read the acceleration values 
 from LSM303DLHC sensor, which is on the STM32F303 Discovery board, along the X and Y axes respectively.
 The LSM303DLHC is connected to the microcontroller via I2C bus. A mutex is used to synchronize 
