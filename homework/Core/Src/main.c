@@ -1,3 +1,37 @@
+/*
+ * homework, main.c
+ *
+ * Purpose: create project which contains inter-task communication and synchronisation
+ * (RTOS Task Notifications, Stream and Message Buffers, Queues, Binary Semaphores,
+ * Counting Semaphores, Mutexes).
+ * 
+ * In the program a few tasks are created. Two tasks are used to read the acceleration values 
+ * from LSM303DLHC sensor, which is on the STM32F303 Discovery Board, along the X and Y axes respectively.
+ * A mutex is used to synchronize these tasks and prevent them from reading data from the sensor simultaniously.
+ * The LSM303DLHC is connected to the microcontroller via I2C bus. These raw values (in hardware units)
+ * are put into queues. For acceleration values along X and Y axes two separate queues are used.
+ * Another task, which has a role of a gateeeper, reads acceleration values from both queues,
+ * converts them to the physical values of acceleration in fractions of gravitational acceleration
+ * and formats a string (array of char), which is put into a stream buffer and passed to another task.
+ * This task is also converts the raw acceleration values into X and Y indexes that are used to index
+ * 2D array (matrix). The 2D array contains the pin numbers LEDs connected to. This indexes are packed
+ * into a struct instance and passed to the LEDs controller task by means of another queue. The LEDs controller
+ * task uses received indexes to determine which LED should be switched on. Changes in the slope of the
+ * Discovery board will cause changes in the position of a switched on LED. So, moving (circular motion) 
+ * the Discovery Board creates nice visual effects on the LEDs. There is a task that reads the available data from 
+ * the stream buffer and transmits them via USART2 (USB - RS232 converter is needed to check this functionality).
+ * There are also two tasks that are used to test the LEDs. One of these tasks reads the user button state
+ * and notifies the other task wheter the button pressed or released. The event group is used for notifications.
+ * If the button is pressed, the tasks that reads data from the sensor, process these data and controls the LEDs
+ * are suspended, and all the LEDs are switched on. It allows to check if all the LEDs work. Releasing the
+ * user button resumes suspended threads execution. When the button is pressed, the text message is transmitted
+ * via USART2. To synchronize the tasks that use USART2 to transmit text messages a semaphore is used.
+ * 
+ *
+ * @author Oleksandr Ushkarenko
+ * @version 1.0 03/10/2021
+ */
+
 #include "main.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -20,43 +54,100 @@
 #define RED_LED_2 		GPIO_PIN_13
 #define ORANGE_LED_2	GPIO_PIN_14
 #define GREEN_LED_2 	GPIO_PIN_15
+#define ALL_LED_PINS (GREEN_LED_1 | ORANGE_LED_1 | BLUE_LED_1 | RED_LED_1 | GREEN_LED_2 | ORANGE_LED_2 | BLUE_LED_2 | RED_LED_2)
 
-#define ACCEL_THRESHOLD 1024
-#define PIN_ARRAY_MAX_INDEX 4
-#define PIN_ARRAY_MIN_INDEX 0
-#define DEFAULT_X_ACCEL_VALUE 0
-#define DEFAULT_Y_ACCEL_VALUE 0
-#define SENSITIVITY 256
-#define I2C_TIMEOUT 10
-#define I2C_READ_DATA_PERIOD 50
-#define BUTTON_READ_STATE_PERIOD 100
+/*
+ * The threshold below which acceleration does not affect the change in the state of the LEDs.
+ */
+#define ACCEL_THRESHOLD 						1024
 
-#define LSM303DLHC_ADDRESS 0x32
-#define I2C_ATTEMPTS_NUM 1
+/*
+ * The 2D array (matrix) has dimensions 5x5. Therefore, the indexes are between 0 and 4. 
+ */
+#define PIN_ARRAY_MAX_INDEX 				4
+#define PIN_ARRAY_MIN_INDEX 				0
 
-#define QUEUE_LENGTH 4
-#define STACK_SIZE 128		// in 4-byte words
-#define PRIORITY_NORMAL 1
+/*
+ * The default acceleration values that are used before the data is read from the sensor. 
+ */
+#define DEFAULT_X_ACCEL_VALUE 			0
+#define DEFAULT_Y_ACCEL_VALUE 			0
 
-#define BUTTON_PRESSED 0x01
-#define BUTTON_RELEASED 0x02
+/*
+ * This identifier is used to adjust the sensitivity; the more value, the less sensitivity.
+ */
+#define SENSITIVITY 								256
 
-#define SEMAPHORE_MAX_COUNT 1
-#define SEMAPHORE_INITIAL_COUNT 1
+/*
+ * The period of the button state reading.
+ */
+#define BUTTON_READ_STATE_PERIOD 		100
 
-#define MAX_STR_LENGTH 32
-#define STREAM_BUFFER_LENGTH 64
+/* 
+ * These identifiers are used to describe LSM303DLHC sensor's register addresses and setting values.
+ */
+#define LSM303DLHC_ADDRESS 					0x32
+#define LSM303DLHC_SETTINGS 				0x47 // 50 Hz, normal mode, XYZ axes enabled
+#define LSM303DLHC_SETTINGS_ADDR 		0x20
+#define LSM303DLHC_RESOLUTION 			0x90 // high resolution
+#define LSM303DLHC_RESOLUTION_ADDR 	0x21
+#define LSM303DLHC_X_REG_LOW				0x28
+#define LSM303DLHC_X_REG_HIGH 			0x29
+#define LSM303DLHC_Y_REG_LOW 				0x2A
+#define LSM303DLHC_Y_REG_HIGH 			0x2B
 
-#define UART_TX_TIMEOUT 100
+/*
+ * The timeout and period values for reading data via I2C bus.
+ */
+#define I2C_TIMEOUT 								10
+#define I2C_READ_DATA_PERIOD 				50
+#define I2C_ATTEMPTS_NUM 						1
 
-#define G_FACTOR (9.81 / 16384)
+#define QUEUE_LENGTH 								4
+#define STACK_SIZE 									128		// in 4-byte words
+#define PRIORITY_NORMAL 						1
 
+/*
+ * Codes for button pressed and button released events.
+ */
+#define BUTTON_PRESSED 							0x01
+#define BUTTON_RELEASED 						0x02
+
+#define SEMAPHORE_MAX_COUNT 				1
+#define SEMAPHORE_INITIAL_COUNT 		1
+
+/*
+ * The sizes of an array of char and a stream buffer.
+ */
+#define MAX_STR_LENGTH 							32
+#define STREAM_BUFFER_LENGTH 				64
+
+/*
+ * UART timeout value.
+ */
+#define UART_TX_TIMEOUT 						100
+
+/*
+ * This identifier is used to convert raw data to physical units.
+ */
+#define G_FACTOR 										(9.81 / 16384)
+
+/*
+ * The structure is used as a wrapper for x and y indexex of the 2D array that
+ * contains LED pin numbers.
+ */
 struct matrix_indexes
 {
 	uint8_t x;
 	uint8_t y;
 };
 
+/*
+ * The 2D array contains pin numbers LEDs connected to. This array is used to control
+ * the state of the LEDs on the Discovery Board. The LED that is switched on depends on
+ * the Discovery Board orientation. The acceleration values along X and Y axes read from 
+ * the sensor converts to the indexes and used to get LED pin number.
+ */
 uint16_t leds[5][5] = {
 {BLUE_LED_2, RED_LED_2, RED_LED_2, RED_LED_2, ORANGE_LED_2},
 {GREEN_LED_1, BLUE_LED_1, RED_LED_1, ORANGE_LED_1, GREEN_LED_2},
@@ -65,14 +156,13 @@ uint16_t leds[5][5] = {
 {ORANGE_LED_1, RED_LED_1, RED_LED_1, RED_LED_1, BLUE_LED_1}
 };
 	
-// These variables created by STM32CubeMX
+// I2C and UART handles (these variables created by STM32CubeMX)
 I2C_HandleTypeDef hi2c1;
 UART_HandleTypeDef huart2;
 
-// Function prototypes
+// Function prototypes (description of each function is above its implementation below)
 void accel_init(void);
 int8_t map_accel_to_array_index(int16_t acceleration);
-
 void read_x_value_task(void *param);
 void read_y_value_task(void *param);
 void transmit_value_task(void *param);
@@ -115,6 +205,10 @@ SemaphoreHandle_t uart_semaphore;
 // Stream buffer handle
 StreamBufferHandle_t stream_buffer_handle;
 
+/*
+ * The main function of the program (the entry point).
+ * Demonstration of using inter-task communication and synchronisation.
+ */
 int main(void)
 {
   HAL_Init();
@@ -185,6 +279,12 @@ int main(void)
   }
 }
 
+/*
+ * The function checks the LSM303DLHC presence on the I2C bus and waits unless the sensor is ready.
+ * When the sensor is ready, it is confogured by writing values to the configuration registers.
+ * The frequency of acceleration measurement is 50 Hz, normal mode, XYZ axes enabled, high resolution mode.
+ * If an error occurs during I2C communication process, the error handling function is called.
+ */
 void accel_init(void)
 {
 	HAL_StatusTypeDef status;
@@ -195,18 +295,22 @@ void accel_init(void)
 		}
   }
 	
-	uint8_t settings = 0x47; // 50 Hz, normal mode, XYZ axes enabled
+	uint8_t settings = LSM303DLHC_SETTINGS;
 	
-	if(HAL_I2C_Mem_Write(&hi2c1, LSM303DLHC_ADDRESS, 0x20, I2C_MEMADD_SIZE_8BIT, &settings, 1, I2C_TIMEOUT) != HAL_OK){
+	if(HAL_I2C_Mem_Write(&hi2c1, LSM303DLHC_ADDRESS, LSM303DLHC_SETTINGS_ADDR, I2C_MEMADD_SIZE_8BIT, &settings, 1, I2C_TIMEOUT) != HAL_OK){
 		Error_Handler();
 	}
   
-	settings = 0x90; // high resolution
-	if(HAL_I2C_Mem_Write(&hi2c1, LSM303DLHC_ADDRESS, 0x21, I2C_MEMADD_SIZE_8BIT, &settings, 1, I2C_TIMEOUT) != HAL_OK){
+	settings = LSM303DLHC_RESOLUTION;
+	if(HAL_I2C_Mem_Write(&hi2c1, LSM303DLHC_ADDRESS, LSM303DLHC_RESOLUTION_ADDR, I2C_MEMADD_SIZE_8BIT, &settings, 1, I2C_TIMEOUT) != HAL_OK){
 		Error_Handler();
 	}
 }
 
+/*
+ * This function converts the raw acceleration data to the array index. 
+ * The result of convertion (i.e. an array index) is used to detrmine which LED should be switched on.
+ */ 
 int8_t map_accel_to_array_index(int16_t acceleration)
 {
 	int8_t index;
@@ -214,13 +318,19 @@ int8_t map_accel_to_array_index(int16_t acceleration)
 	
 	if(index > PIN_ARRAY_MAX_INDEX){
 			index = PIN_ARRAY_MAX_INDEX;
-	  } else if(index < PIN_ARRAY_MIN_INDEX){
+	} else if(index < PIN_ARRAY_MIN_INDEX){
 			index = PIN_ARRAY_MIN_INDEX;
-	 }
+	}
 	
 	return index;
 }
 
+/*
+ * This task function reads from the sensor the acceleration value along the X axis,
+ * and puts it into the queue. The mutex is used for tasks synchronization.
+ *
+ * @param a value that is passed as the parameter to the created task.
+ */
 void read_x_value_task(void *param)
 {
 	uint8_t data[2];
@@ -229,12 +339,19 @@ void read_x_value_task(void *param)
 
 	while(1){
 		xSemaphoreTake(sensor_mutex, portMAX_DELAY);
-		status[0] = HAL_I2C_Mem_Read(&hi2c1, LSM303DLHC_ADDRESS, 0x28, I2C_MEMADD_SIZE_8BIT, &data[0], 1, I2C_TIMEOUT);
-		status[1] = HAL_I2C_Mem_Read(&hi2c1, LSM303DLHC_ADDRESS, 0x29, I2C_MEMADD_SIZE_8BIT, &data[1], 1, I2C_TIMEOUT);
+		// HIGH and LOW bytes of 16-bit acceleration value are read separately due to the fact
+		// that the sensor does NOT increment automatically the data register address after the procedure of reading. 
+		status[0] = HAL_I2C_Mem_Read(&hi2c1, LSM303DLHC_ADDRESS, LSM303DLHC_X_REG_LOW, I2C_MEMADD_SIZE_8BIT, &data[0], 1, I2C_TIMEOUT);
+		status[1] = HAL_I2C_Mem_Read(&hi2c1, LSM303DLHC_ADDRESS, LSM303DLHC_X_REG_HIGH, I2C_MEMADD_SIZE_8BIT, &data[1], 1, I2C_TIMEOUT);
 		
 		if((status[0] == HAL_OK) && (status[1] == HAL_OK)){
-			x_accel = (data[1]<<8) | data[0];
 			
+			// constructing the 16-bit variable from two 8-bit values (HIGH and LOW bytes merging).
+			x_accel = (data[1] << 8) | data[0];	
+			
+			// If the Discovery Board is almost in the horisontal position, and if 
+			// the aceleration value is lower then the threshold, the read value is set to its default
+			// value to prevent LEDs blinking from the measurement noise.
 			if((x_accel < ACCEL_THRESHOLD) && (x_accel > -ACCEL_THRESHOLD)){
 				x_accel = DEFAULT_X_ACCEL_VALUE;
 			}
@@ -246,6 +363,12 @@ void read_x_value_task(void *param)
 	}
 }
 
+/*
+ * This task function reads from the sensor the acceleration value along the Y axis,
+ * and puts it into the queue. The mutex is used for tasks synchronization.
+ *
+ * @param a value that is passed as the parameter to the created task.
+ */
 void read_y_value_task(void *param)
 {
 	uint8_t data[2];
@@ -255,23 +378,35 @@ void read_y_value_task(void *param)
 	while(1){
 		
 		xSemaphoreTake(sensor_mutex, portMAX_DELAY);
-		status[0] = HAL_I2C_Mem_Read(&hi2c1, LSM303DLHC_ADDRESS, 0x2A, I2C_MEMADD_SIZE_8BIT, &data[0], 1, I2C_TIMEOUT);
-		status[1] = HAL_I2C_Mem_Read(&hi2c1, LSM303DLHC_ADDRESS, 0x2B, I2C_MEMADD_SIZE_8BIT, &data[1], 1, I2C_TIMEOUT);
+		// HIGH and LOW bytes of 16-bit acceleration value are read separately due to the fact
+		// that the sensor does NOT increment automatically the data register address after the procedure of reading. 
+		status[0] = HAL_I2C_Mem_Read(&hi2c1, LSM303DLHC_ADDRESS, LSM303DLHC_Y_REG_LOW, I2C_MEMADD_SIZE_8BIT, &data[0], 1, I2C_TIMEOUT);
+		status[1] = HAL_I2C_Mem_Read(&hi2c1, LSM303DLHC_ADDRESS, LSM303DLHC_Y_REG_HIGH, I2C_MEMADD_SIZE_8BIT, &data[1], 1, I2C_TIMEOUT);
 		if((status[0] == HAL_OK) && (status[1] == HAL_OK)){
 
-		y_accel = (data[1]<<8) | data[0];
-		
-		if((y_accel < ACCEL_THRESHOLD) && (y_accel > -ACCEL_THRESHOLD)){
-			y_accel = DEFAULT_Y_ACCEL_VALUE;
-		}
+			// constructing the 16-bit variable from two 8-bit values (HIGH and LOW bytes merging).
+			y_accel = (data[1] << 8) | data[0];
+			
+			// If the Discovery Board is almost in the horisontal position, and if 
+			// the aceleration value is lower then the threshold, the read value is set to its default
+			// value to prevent LEDs blinking from the measurement noise.
+			if((y_accel < ACCEL_THRESHOLD) && (y_accel > -ACCEL_THRESHOLD)){
+				y_accel = DEFAULT_Y_ACCEL_VALUE;
+			}
 
-		xQueueSend(accel_Y_queue_handle, &y_accel, portMAX_DELAY);
-		xSemaphoreGive(sensor_mutex);
-	}
-		vTaskDelay(I2C_READ_DATA_PERIOD);
-	}
+			xQueueSend(accel_Y_queue_handle, &y_accel, portMAX_DELAY);
+			xSemaphoreGive(sensor_mutex);
+		}
+			vTaskDelay(I2C_READ_DATA_PERIOD);
+		}
 }
 
+/*
+ * This task function reads bytes (chars) from the stream buffer and transmits them via USART.
+ * The semaphore is used to synchronize tasks (there is one more task that uses the same USART).
+ *
+ * @param a value that is passed as the parameter to the created task.
+ */
 void transmit_value_task(void *param)
 {
 	size_t size;
@@ -286,21 +421,34 @@ void transmit_value_task(void *param)
 	}
 }
 
+/*
+ * The task function reads periodically the user button state and transmits the text message
+ * via USART if the user button is pressed. The semaphore is used to synchronize tasks.
+ *
+ * @param a value that is passed as the parameter to the created task.
+ */
 void transmit_button_state_task(void *param)
 {
 	const char str[] = "Button PRESSED\n\r";
   while(1){
 		if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_SET){
-		
 			xSemaphoreTake(uart_semaphore, portMAX_DELAY);
 			HAL_UART_Transmit(&huart2, (uint8_t*)str, strlen(str), UART_TX_TIMEOUT);
-			xSemaphoreGive(uart_semaphore);
-			
+			xSemaphoreGive(uart_semaphore);	
 			vTaskDelay(BUTTON_READ_STATE_PERIOD);
 		}
 	}
 }
 
+/*
+ * This task function reads the acceleration raw values along X and Y axes from two different queues,
+ * formats the text string that contains the information about acceleration in physical units and
+ * puts it into the stream buffer, converts the acceleration values into 2D array indexes and passes
+ * them to the led controller task function (having previously copied them into the structure fields)
+ * by means of the other queue.
+ *
+ * @param a value that is passed as the parameter to the created task.
+ */
 void led_gatekeeper_task(void *param)
 {
 	struct matrix_indexes indexes;
@@ -323,18 +471,31 @@ void led_gatekeeper_task(void *param)
 	}
 }
 
+/*
+ * This task function reads the data from the queue thas contains indexes of the 2D array,
+ * which contains pin numbers LEDs connected to, and uses it to determine which LED should be
+ * switched on. The indexes of the array are dependent on the acceleration values read from the sensor,
+ * so moving the Discovery Board causes changes in the LEDs states.
+ *
+ * @param a value that is passed as the parameter to the created task.
+ */
 void led_controller_task(void *param)
 {		
 	struct matrix_indexes indexes;
 	while(1){
-		if(xQueueReceive(matrix_indexes_queue_handle, &indexes, portMAX_DELAY) == pdTRUE)
-		{
-			HAL_GPIO_WritePin(GPIOE, GREEN_LED_1 | ORANGE_LED_1 | BLUE_LED_1 | RED_LED_1 | GREEN_LED_2 | ORANGE_LED_2 | BLUE_LED_2 | RED_LED_2, GPIO_PIN_RESET);
+		if(xQueueReceive(matrix_indexes_queue_handle, &indexes, portMAX_DELAY) == pdTRUE){
+			HAL_GPIO_WritePin(GPIOE, ALL_LED_PINS, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(GPIOE, leds[indexes.x][indexes.y], GPIO_PIN_SET);
 		}
 	}
 }
 
+/*
+ * This task function reads the user button state and notifies another task by means
+ * of an event group whether the button has been pressed or released. 
+ *
+ * @param a value that is passed as the parameter to the created task.
+ */
 void read_button_state_task(void *param)
 {
 	while(1){
@@ -348,6 +509,15 @@ void read_button_state_task(void *param)
 	}
 }
 
+/*
+ * The task function waits for notification about user button state changes.
+ * If the user button has been pressed (event bits being waited for became set),
+ * the other tasks are suspended and all the LEDs are switched on. If the user button has been released,
+ * all the LEDs are switched off and the other tasks are resumed. Suspending other tasks
+ * prevents LEDs from blinking.
+ *
+ * @param a value that is passed as the parameter to the created task.
+ */
 void led_test_task(void *param)
 {
 	EventBits_t event_group_value;
@@ -355,17 +525,21 @@ void led_test_task(void *param)
    event_group_value = xEventGroupWaitBits(event_group_handle, BUTTON_PRESSED, pdTRUE, pdTRUE, portMAX_DELAY);                               
    if((event_group_value & BUTTON_PRESSED) != 0){
 			suspend_tasks();
-			HAL_GPIO_WritePin(GPIOE, GREEN_LED_1 | ORANGE_LED_1 | BLUE_LED_1 | RED_LED_1 | GREEN_LED_2 | ORANGE_LED_2 | BLUE_LED_2 | RED_LED_2, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOE, ALL_LED_PINS, GPIO_PIN_SET);
    }
 	 
 	 event_group_value = xEventGroupWaitBits(event_group_handle, BUTTON_RELEASED, pdTRUE, pdTRUE, portMAX_DELAY);
    if((event_group_value & BUTTON_RELEASED) != 0){
-			HAL_GPIO_WritePin(GPIOE, GREEN_LED_1 | ORANGE_LED_1 | BLUE_LED_1 | RED_LED_1 | GREEN_LED_2 | ORANGE_LED_2 | BLUE_LED_2 | RED_LED_2, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOE, ALL_LED_PINS, GPIO_PIN_RESET);
 			resume_tasks();
    }
  }
 }
 
+/*
+ * The function suspends the tasks that read data from the sensor, transmits data via USART,
+ * processes data and controls the LEDs states.
+ */
 void suspend_tasks(void)
 {
 	vTaskSuspend(read_x_value_task_handle);
@@ -375,6 +549,10 @@ void suspend_tasks(void)
 	vTaskSuspend(led_controller_task_handle);
 }
 
+/*
+ * The function resumes the tasks that read data from the sensor, transmits data via USART,
+ * processes data and controls the LEDs states.
+ */
 void resume_tasks(void)
 {
 	vTaskResume(read_x_value_task_handle);
@@ -384,9 +562,9 @@ void resume_tasks(void)
 	vTaskResume(led_controller_task_handle);
 }
 
-/*=============================================================================*/
-/*========= All functions below were created by means of STM32CubeMX ==========*/
-/*=============================================================================*/
+/*=================================================================================*/
+/*========= All the functions below were created by means of STM32CubeMX ==========*/
+/*=================================================================================*/
 
 /*
  * System Clock Configuration
